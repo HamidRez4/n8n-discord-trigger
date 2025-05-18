@@ -301,23 +301,6 @@ export default function () {
 
                 const pattern = parameters.pattern;
 
-                const triggerOnExternalBot = parameters.additionalFields?.externalBotTrigger || false;
-                const onlyWithAttachments = parameters.additionalFields?.attachmentsRequired || false;
-
-                // ignore messages of other bots
-                if (!triggerOnExternalBot) {
-                    if (message.author.bot || message.author.system) continue;
-                }
-                else if (message.author.id === message.client.user.id) continue;
-
-
-                // check if executed by the proper role
-                const userRoles = message.member?.roles.cache.map((role: any) => role.id);
-                if (parameters.roleIds.length) {
-                    const hasRole = parameters.roleIds.some((role: any) => userRoles?.includes(role));
-                    if (!hasRole) continue;
-                }
-
                 // check if executed by the proper channel
                 if (parameters.channelIds.length) {
                     const isInChannel = parameters.channelIds.some((channelId: any) => message.channel.id?.includes(channelId));
@@ -325,33 +308,15 @@ export default function () {
                 }
 
 
-                // check if the message has to have a message that was responded to
-                if (parameters.messageReferenceRequired && !message.reference) {
-                    continue;
-                }
-
-                // fetch the message reference only once and only if needed, even if multiple triggers are installed
-                if (!messageRerenceFetched) {
-                    messageReference = await message.fetchReference();
-                    messageRerenceFetched = true;
-                }
-
-
-                // escape the special chars to properly trigger the message
                 const escapedTriggerValue = String(parameters.value)
                     .replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
                     .replace(/-/g, '\\x2d');
 
-                const clientId = client.user?.id;
-                const botMention = message.mentions.users.some((user: any) => user.id === clientId);
 
                 let regStr = `^${escapedTriggerValue}$`;
 
                 // return if we expect a bot mention, but bot is not mentioned
-                if (pattern === "botMention" && !botMention)
-                    continue;
-
-                else if (pattern === "start" && message.content)
+                if (pattern === "start" && message.content)
                     regStr = `^${escapedTriggerValue}`;
                 else if (pattern === 'end')
                     regStr = `${escapedTriggerValue}$`;
@@ -364,21 +329,16 @@ export default function () {
 
                 const reg = new RegExp(regStr, parameters.caseSensitive ? '' : 'i');
 
-                if ((pattern === "botMention" && botMention) || reg.test(message.content)) {
+                if (reg.test(message.content)) {
                     // Emit the message data to n8n
 
-                    // message create Options 
+                    // message create Options
                     const messageCreateOptions : any = {
-                        message,
-                        messageReference,
+                        message: message,
                         guild: message?.guild,
-                        referenceAuthor: messageReference?.author,
-                        author: message.author,
+                        author: 1,
                         nodeId: nodeId,
                     }
-                    
-                    // check attachments
-                    if (onlyWithAttachments && !message.attachments) continue;
                     
                     console.log("attachments", message.attachments);
                     messageCreateOptions.attachments = message.attachments;
